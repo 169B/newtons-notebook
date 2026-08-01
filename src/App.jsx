@@ -350,6 +350,14 @@ export default function App() {
     setGotoValue('')
   }
 
+  const goToCover = () => {
+    const pf = pageFlipRef.current
+    if (!pf) return
+    ensurePreloaded(0, PRELOAD_AHEAD)
+    pf.turnToPage(0)
+    setCurrentPage(0)
+  }
+
   const toggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement) {
@@ -469,6 +477,18 @@ export default function App() {
             </div>
             <FlowButton text="Next" direction="next" onClick={goNext} />
           </div>
+        )}
+
+        {currentPage > 0 && (
+          <button
+            type="button"
+            className="cover-btn"
+            onClick={goToCover}
+            aria-label="Go to cover"
+            title="Go to cover"
+          >
+            Cover
+          </button>
         )}
       </div>
     </div>
