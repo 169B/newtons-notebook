@@ -17,7 +17,8 @@
   min-width: 132px;
   font-size: 0.9rem;
   font-weight: 600;
-  font-family: 'Georgia', serif;
+  font-family: 'Koulen', sans-serif;
+  text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--flow-fg);
   cursor: pointer;

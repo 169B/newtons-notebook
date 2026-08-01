@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { PageFlip } from 'page-flip'
-import { Maximize2, Minimize2 } from 'lucide-react'
+import { Maximize2, Minimize2, Smartphone } from 'lucide-react'
 import { FlowButton } from './components/FlowButton'
 import 'page-flip/src/Style/stPageFlip.css'
 import './App.css'
@@ -8,6 +8,21 @@ import './App.css'
 const NAV_H = 72
 const PRELOAD_AHEAD = 8
 const PRELOAD_CONCURRENCY = 6
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 920px)').matches || navigator.maxTouchPoints > 1
+}
+
+function isLandscape() {
+  return window.innerWidth >= window.innerHeight
+}
+
+function chromeHeight() {
+  if (document.fullscreenElement) return 0
+  if (isMobileViewport() && isLandscape()) return 0
+  if (isMobileViewport() && !isLandscape()) return 0
+  return NAV_H
+}
 
 function preloadImage(src) {
   return new Promise((resolve) => {
@@ -32,11 +47,23 @@ async function preloadMany(srcs, concurrency = PRELOAD_CONCURRENCY, cancelled) {
   await Promise.all(Array.from({ length: concurrency }, () => worker()))
 }
 
+async function lockLandscape() {
+  try {
+    if (screen.orientation?.lock) {
+      await screen.orientation.lock('landscape')
+    }
+  } catch {
+    // Browsers often require fullscreen / may deny — ignore
+  }
+}
+
 export default function App() {
   const hostRef = useRef(null)
+  const bookRootRef = useRef(null)
   const pageFlipRef = useRef(null)
   const sourcesRef = useRef([])
   const preloadedRef = useRef(new Set())
+  const naturalRef = useRef({ w: 1, h: 1.4 })
 
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState('')
@@ -44,11 +71,19 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(0)
   const [loadHint, setLoadHint] = useState('Opening document…')
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [gotoValue, setGotoValue] = useState('')
+  const [mobilePortrait, setMobilePortrait] = useState(
+    () => isMobileViewport() && !isLandscape()
+  )
+  const [hideChrome, setHideChrome] = useState(
+    () => Boolean(document.fullscreenElement) || (isMobileViewport() && isLandscape())
+  )
 
   const calcPageSize = useCallback((imgW, imgH) => {
     const pageAspect = imgW / imgH
-    const maxH = window.innerHeight - NAV_H - 16
-    const maxW = window.innerWidth * 0.98
+    const immersive = Boolean(document.fullscreenElement) || (isMobileViewport() && isLandscape())
+    const maxH = window.innerHeight - chromeHeight() - (immersive ? 2 : 16)
+    const maxW = window.innerWidth * (immersive ? 0.998 : 0.98)
     let h = maxH
     let pageW = h * pageAspect
     if (pageW * 2 > maxW) {
@@ -56,8 +91,30 @@ export default function App() {
       h = pageW / pageAspect
     }
     return {
-      width: Math.floor(pageW),
-      height: Math.floor(h),
+      width: Math.max(120, Math.floor(pageW)),
+      height: Math.max(160, Math.floor(h)),
+    }
+  }, [])
+
+  const applyBookSize = useCallback((size) => {
+    const root = bookRootRef.current
+    const pf = pageFlipRef.current
+    if (!root || !pf) return
+    root.style.width = `${size.width * 2}px`
+    root.style.height = `${size.height}px`
+    root.style.minWidth = `${size.width * 2}px`
+    root.style.minHeight = `${size.height}px`
+    const settings = pf.getSettings()
+    settings.width = size.width
+    settings.height = size.height
+    settings.minWidth = size.width
+    settings.maxWidth = size.width
+    settings.minHeight = size.height
+    settings.maxHeight = size.height
+    try {
+      pf.update()
+    } catch {
+      // ignore transient update errors during rotate
     }
   }, [])
 
@@ -78,11 +135,36 @@ export default function App() {
     )
   }, [])
 
-  useEffect(() => {
-    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement))
-    document.addEventListener('fullscreenchange', onFs)
-    return () => document.removeEventListener('fullscreenchange', onFs)
+  const syncLayoutFlags = useCallback(() => {
+    const mobile = isMobileViewport()
+    const landscape = isLandscape()
+    setMobilePortrait(mobile && !landscape)
+    setHideChrome(Boolean(document.fullscreenElement) || (mobile && landscape))
+    setIsFullscreen(Boolean(document.fullscreenElement))
   }, [])
+
+  useEffect(() => {
+    const onFs = () => {
+      syncLayoutFlags()
+      if (document.fullscreenElement) lockLandscape()
+      const { w, h } = naturalRef.current
+      requestAnimationFrame(() => applyBookSize(calcPageSize(w, h)))
+    }
+    const onResize = () => {
+      syncLayoutFlags()
+      const { w, h } = naturalRef.current
+      applyBookSize(calcPageSize(w, h))
+    }
+    document.addEventListener('fullscreenchange', onFs)
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    syncLayoutFlags()
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
+  }, [applyBookSize, calcPageSize, syncLayoutFlags])
 
   useEffect(() => {
     if (status !== 'ready') return
@@ -118,9 +200,6 @@ export default function App() {
       const { total } = await res.json()
       if (destroyed || !hostRef.current) return
 
-      // Page list:
-      // - blank at page 4 so interior spreads align
-      // - blank before the last page so the final page is a solo hard back cover
       const sources = Array.from({ length: total }, (_, i) => ({
         type: 'image',
         src: `/pages/page-${String(i + 1).padStart(4, '0')}.jpg`,
@@ -138,6 +217,7 @@ export default function App() {
         img.src = firstSrc
       })
       if (destroyed || !hostRef.current) return
+      naturalRef.current = natural
       preloadedRef.current.add(firstSrc)
 
       const size = calcPageSize(natural.w, natural.h)
@@ -160,7 +240,10 @@ export default function App() {
       root.className = 'flipbook'
       root.style.width = `${size.width * 2}px`
       root.style.height = `${size.height}px`
+      root.style.minWidth = `${size.width * 2}px`
+      root.style.minHeight = `${size.height}px`
       hostRef.current.appendChild(root)
+      bookRootRef.current = root
 
       sources.forEach((entry, index) => {
         const page = document.createElement('div')
@@ -202,7 +285,7 @@ export default function App() {
         useMouseEvents: true,
         mobileScrollSupport: true,
         swipeDistance: 30,
-        maxShadowOpacity: 0.5,
+        maxShadowOpacity: 1,
         showPageCorners: true,
       })
 
@@ -212,6 +295,11 @@ export default function App() {
         ensurePreloaded(e.data + 1, PRELOAD_AHEAD)
       })
       pageFlipRef.current = pf
+
+      // Fit again after layout settles (esp. mobile browser chrome)
+      requestAnimationFrame(() => {
+        applyBookSize(calcPageSize(natural.w, natural.h))
+      })
 
       const rest = sources
         .filter((s) => s.type === 'image' && !preloadedRef.current.has(s.src))
@@ -232,9 +320,10 @@ export default function App() {
       destroyed = true
       try { pageFlipRef.current?.destroy() } catch (_) {}
       pageFlipRef.current = null
+      bookRootRef.current = null
       if (hostRef.current) hostRef.current.innerHTML = ''
     }
-  }, [calcPageSize, ensurePreloaded])
+  }, [applyBookSize, calcPageSize, ensurePreloaded])
 
   const goNext = () => {
     ensurePreloaded(currentPage + 1, PRELOAD_AHEAD)
@@ -242,16 +331,44 @@ export default function App() {
   }
   const goPrev = () => pageFlipRef.current?.flipPrev()
 
+  const goToPage = (raw) => {
+    const pf = pageFlipRef.current
+    if (!pf || !totalPages) return
+    const n = Number.parseInt(String(raw).trim(), 10)
+    if (!Number.isFinite(n)) return
+    const index = Math.min(totalPages, Math.max(1, n)) - 1
+    ensurePreloaded(Math.max(0, index - 2), PRELOAD_AHEAD + 2)
+    pf.turnToPage(index)
+    setCurrentPage(index)
+    setGotoValue('')
+  }
+
   const toggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen()
+        await lockLandscape()
       } else {
         await document.exitFullscreen()
       }
     } catch (err) {
       console.error('Fullscreen failed', err)
+      await lockLandscape()
     }
+  }
+
+  const enterMobileLandscape = async () => {
+    await lockLandscape()
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen()
+      }
+    } catch {
+      // fullscreen optional
+    }
+    syncLayoutFlags()
+    const { w, h } = naturalRef.current
+    applyBookSize(calcPageSize(w, h))
   }
 
   return (
@@ -279,7 +396,27 @@ export default function App() {
         </div>
       )}
 
-      <div className="viewer" style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }}>
+      {mobilePortrait && status === 'ready' && (
+        <div className="rotate-gate">
+          <Smartphone className="rotate-gate__icon" size={48} />
+          <div className="rotate-gate__title">Turn your phone</div>
+          <div className="rotate-gate__text">
+            Newton&apos;s Notebook is best in landscape — rotate to fill the screen.
+          </div>
+          <button type="button" className="rotate-gate__btn" onClick={enterMobileLandscape}>
+            Continue in landscape
+          </button>
+        </div>
+      )}
+
+      <div
+        className={[
+          'viewer',
+          hideChrome ? 'viewer--fullscreen' : '',
+          isMobileViewport() && isLandscape() ? 'viewer--mobile-landscape' : '',
+        ].filter(Boolean).join(' ')}
+        style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }}
+      >
         <button
           type="button"
           className="fullscreen-btn"
@@ -291,14 +428,48 @@ export default function App() {
         </button>
 
         <div className="flipbook-wrap">
-          <div ref={hostRef} className="flipbook-host" />
+          <div
+            className={`book-stage${
+              currentPage > 0 && currentPage < totalPages - 1 ? ' book-stage--open' : ''
+            }`}
+          >
+            <div ref={hostRef} className="flipbook-host" />
+            {currentPage > 0 && currentPage < totalPages - 1 && (
+              <div className="book-crease" aria-hidden="true" />
+            )}
+          </div>
         </div>
 
-        <div className="nav-bar">
-          <FlowButton text="Prev" direction="prev" onClick={goPrev} />
-          <span className="page-label">Page {currentPage + 1} of {totalPages}</span>
-          <FlowButton text="Next" direction="next" onClick={goNext} />
-        </div>
+        {!hideChrome && (
+          <div className="nav-bar">
+            <FlowButton text="Prev" direction="prev" onClick={goPrev} />
+            <div className="nav-center">
+              <span className="page-label">Page {currentPage + 1} of {totalPages}</span>
+              <form
+                className="goto-form"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  goToPage(gotoValue)
+                }}
+              >
+                <label className="goto-label" htmlFor="goto-page">Go to</label>
+                <input
+                  id="goto-page"
+                  className="goto-input"
+                  type="number"
+                  min={1}
+                  max={totalPages || 1}
+                  inputMode="numeric"
+                  placeholder="#"
+                  value={gotoValue}
+                  onChange={(e) => setGotoValue(e.target.value)}
+                />
+                <button type="submit" className="goto-btn">Go</button>
+              </form>
+            </div>
+            <FlowButton text="Next" direction="next" onClick={goNext} />
+          </div>
+        )}
       </div>
     </div>
   )
