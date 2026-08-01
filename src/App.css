@@ -101,9 +101,9 @@ html, body, #root {
   background: transparent !important;
 }
 
-/* HTML-mode pages — browser renders imgs at full retina sharpness */
+/* HTML-mode pages — paper color while image loads (no black flash) */
 .page {
-  background: #111;
+  background: #f7f4ef;
   overflow: hidden;
 }
 
@@ -119,6 +119,7 @@ html, body, #root {
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
+  background: #f7f4ef;
 }
 
 /* ── Nav Bar ── */
