@@ -85,6 +85,28 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (status !== 'ready') return
+
+    const onKey = (e) => {
+      if (e.target instanceof HTMLElement) {
+        const tag = e.target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return
+      }
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        e.preventDefault()
+        ensurePreloaded(currentPage + 1, PRELOAD_AHEAD)
+        pageFlipRef.current?.flipNext()
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault()
+        pageFlipRef.current?.flipPrev()
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [status, currentPage, ensurePreloaded])
+
+  useEffect(() => {
     let destroyed = false
     const cancelled = () => destroyed
 
