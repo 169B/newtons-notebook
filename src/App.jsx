@@ -273,6 +273,7 @@ export default function App() {
         root.appendChild(page)
       })
 
+      // Match StPageFlip demo defaults for natural crease / flip shadows
       const pf = new PageFlip(root, {
         width: size.width,
         height: size.height,
@@ -281,12 +282,13 @@ export default function App() {
         usePortrait: false,
         autoSize: true,
         drawShadow: true,
-        flippingTime: 700,
+        flippingTime: 1000,
         useMouseEvents: true,
         mobileScrollSupport: true,
         swipeDistance: 30,
-        maxShadowOpacity: 1,
+        maxShadowOpacity: 0.5,
         showPageCorners: true,
+        startZIndex: 0,
       })
 
       pf.loadFromHTML(root.querySelectorAll('.page'))
@@ -428,15 +430,8 @@ export default function App() {
         </button>
 
         <div className="flipbook-wrap">
-          <div
-            className={`book-stage${
-              currentPage > 0 && currentPage < totalPages - 1 ? ' book-stage--open' : ''
-            }`}
-          >
+          <div className="book-stage">
             <div ref={hostRef} className="flipbook-host" />
-            {currentPage > 0 && currentPage < totalPages - 1 && (
-              <div className="book-crease" aria-hidden="true" />
-            )}
           </div>
         </div>
 
