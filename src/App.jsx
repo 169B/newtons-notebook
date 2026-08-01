@@ -9,18 +9,25 @@ const NAV_H = 72
 const PRELOAD_AHEAD = 8
 const PRELOAD_CONCURRENCY = 6
 
-function isMobileViewport() {
-  return window.matchMedia('(max-width: 920px)').matches || navigator.maxTouchPoints > 1
+/** Real phones/tablets only — not touchscreen laptops (those still need the nav bar). */
+function isPhoneViewport() {
+  return window.matchMedia(
+    '(max-width: 920px) and (hover: none) and (pointer: coarse)'
+  ).matches
 }
 
 function isLandscape() {
   return window.innerWidth >= window.innerHeight
 }
 
+function isPhoneLandscape() {
+  return isPhoneViewport() && isLandscape()
+}
+
 function chromeHeight() {
   if (document.fullscreenElement) return 0
-  if (isMobileViewport() && isLandscape()) return 0
-  if (isMobileViewport() && !isLandscape()) return 0
+  if (isPhoneLandscape()) return 0
+  if (isPhoneViewport() && !isLandscape()) return 0
   return NAV_H
 }
 
@@ -73,15 +80,15 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [gotoValue, setGotoValue] = useState('')
   const [mobilePortrait, setMobilePortrait] = useState(
-    () => isMobileViewport() && !isLandscape()
+    () => isPhoneViewport() && !isLandscape()
   )
   const [hideChrome, setHideChrome] = useState(
-    () => Boolean(document.fullscreenElement) || (isMobileViewport() && isLandscape())
+    () => Boolean(document.fullscreenElement) || isPhoneLandscape()
   )
 
   const calcPageSize = useCallback((imgW, imgH) => {
     const pageAspect = imgW / imgH
-    const immersive = Boolean(document.fullscreenElement) || (isMobileViewport() && isLandscape())
+    const immersive = Boolean(document.fullscreenElement) || isPhoneLandscape()
     const maxH = window.innerHeight - chromeHeight() - (immersive ? 2 : 16)
     const maxW = window.innerWidth * (immersive ? 0.998 : 0.98)
     let h = maxH
@@ -136,10 +143,8 @@ export default function App() {
   }, [])
 
   const syncLayoutFlags = useCallback(() => {
-    const mobile = isMobileViewport()
-    const landscape = isLandscape()
-    setMobilePortrait(mobile && !landscape)
-    setHideChrome(Boolean(document.fullscreenElement) || (mobile && landscape))
+    setMobilePortrait(isPhoneViewport() && !isLandscape())
+    setHideChrome(Boolean(document.fullscreenElement) || isPhoneLandscape())
     setIsFullscreen(Boolean(document.fullscreenElement))
   }, [])
 
@@ -415,7 +420,7 @@ export default function App() {
         className={[
           'viewer',
           hideChrome ? 'viewer--fullscreen' : '',
-          isMobileViewport() && isLandscape() ? 'viewer--mobile-landscape' : '',
+          isPhoneLandscape() ? 'viewer--mobile-landscape' : '',
         ].filter(Boolean).join(' ')}
         style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }}
       >
