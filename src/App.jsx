@@ -40,7 +40,15 @@ export default function App() {
       }
       const { total } = await res.json()
       if (destroyed || !hostRef.current) return
-      setTotalPages(total)
+
+      // Build page list, then insert a blank at position 4 so double-page
+      // spreads line up (cover, 2–3, blank|4, then 5–6, 7–8, …)
+      const sources = Array.from({ length: total }, (_, i) => ({
+        type: 'image',
+        src: `/pages/page-${String(i + 1).padStart(4, '0')}.jpg`,
+      }))
+      sources.splice(3, 0, { type: 'blank' }) // 0-based index 3 = page 4
+      setTotalPages(sources.length)
 
       const natural = await new Promise((resolve, reject) => {
         const img = new Image()
@@ -64,21 +72,26 @@ export default function App() {
       root.style.height = `${size.height}px`
       hostRef.current.appendChild(root)
 
-      for (let i = 1; i <= total; i++) {
+      sources.forEach((entry, index) => {
         const page = document.createElement('div')
-        page.className = 'page'
-        // Hard density required for cover behavior (HTML mode only)
-        page.dataset.density = i === 1 || i === total ? 'hard' : 'soft'
+        page.className = entry.type === 'blank' ? 'page page--blank' : 'page'
+        page.dataset.density =
+          index === 0 || index === sources.length - 1 ? 'hard' : 'soft'
 
-        const img = document.createElement('img')
-        img.src = `/pages/page-${String(i).padStart(4, '0')}.jpg`
-        img.alt = `Page ${i}`
-        img.draggable = false
-        img.decoding = 'async'
-        img.loading = i <= 4 ? 'eager' : 'lazy'
-        page.appendChild(img)
+        if (entry.type === 'blank') {
+          page.setAttribute('aria-label', 'Blank page')
+        } else {
+          const img = document.createElement('img')
+          img.src = entry.src
+          img.alt = `Page ${index + 1}`
+          img.draggable = false
+          img.decoding = 'async'
+          img.loading = index < 5 ? 'eager' : 'lazy'
+          page.appendChild(img)
+        }
+
         root.appendChild(page)
-      }
+      })
 
       const pf = new PageFlip(root, {
         width: size.width,

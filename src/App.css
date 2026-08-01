@@ -107,6 +107,10 @@ html, body, #root {
   overflow: hidden;
 }
 
+.page--blank {
+  background: #f7f4ef;
+}
+
 .page img {
   display: block;
   width: 100%;
