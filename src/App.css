@@ -1,0 +1,156 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0f0d0a;
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+  background: #0f0d0a;
+  font-family: 'Georgia', serif;
+}
+
+/* ── Loading Screen ── */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f0d0a;
+  z-index: 100;
+}
+
+.loading-inner {
+  text-align: center;
+  color: #e8dcc8;
+  max-width: 480px;
+  padding: 0 24px;
+}
+
+.loading-title {
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  color: #f0e6cc;
+}
+
+.loading-subtitle {
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 40px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.progress-text {
+  font-size: 0.85rem;
+  color: #666;
+  letter-spacing: 0.05em;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #2a2a2a;
+  border-top-color: #c8a86b;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 32px auto 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Viewer ── */
+.viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(ellipse at center, #2a2218 0%, #0f0d0a 100%);
+}
+
+.flipbook-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+
+.flipbook {
+  margin: 0 auto;
+}
+
+.stf__parent,
+.stf__block {
+  background: transparent !important;
+}
+
+/* HTML-mode pages — browser renders imgs at full retina sharpness */
+.page {
+  background: #111;
+  overflow: hidden;
+}
+
+.page img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* ── Nav Bar ── */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  height: 56px;
+  flex-shrink: 0;
+  width: 100%;
+  background: #0f0d0a;
+}
+
+.nav-btn {
+  background: rgba(255,255,255,0.06);
+  color: #c8a86b;
+  border: 1px solid rgba(200, 168, 107, 0.3);
+  padding: 8px 22px;
+  font-size: 1rem;
+  font-family: 'Georgia', serif;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.nav-btn:hover {
+  background: rgba(200, 168, 107, 0.12);
+  border-color: rgba(200, 168, 107, 0.6);
+}
+
+.page-label {
+  color: #888;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  min-width: 120px;
+  text-align: center;
+}
