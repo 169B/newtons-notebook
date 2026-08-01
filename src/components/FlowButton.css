@@ -1,0 +1,137 @@
+.flow-btn {
+  --flow-fg: #f0e6cc;
+  --flow-border: rgba(200, 168, 107, 0.45);
+  --flow-fill: #c8a86b;
+  --flow-on-fill: #1a140c;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+  border-radius: 100px;
+  border: 1.5px solid var(--flow-border);
+  background: transparent;
+  padding: 10px 28px;
+  min-width: 132px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: 'Georgia', serif;
+  letter-spacing: 0.04em;
+  color: var(--flow-fg);
+  cursor: pointer;
+  transition:
+    border-color 0.6s cubic-bezier(0.23, 1, 0.32, 1),
+    color 0.6s cubic-bezier(0.23, 1, 0.32, 1),
+    border-radius 0.6s cubic-bezier(0.23, 1, 0.32, 1),
+    transform 0.2s ease;
+}
+
+.flow-btn:hover {
+  border-color: transparent;
+  color: var(--flow-on-fill);
+  border-radius: 12px;
+}
+
+.flow-btn:active {
+  transform: scale(0.95);
+}
+
+.flow-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.flow-btn__text {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.8s ease-out;
+}
+
+.flow-btn--next .flow-btn__text {
+  transform: translateX(-10px);
+}
+.flow-btn--next:hover .flow-btn__text {
+  transform: translateX(10px);
+}
+
+.flow-btn--prev .flow-btn__text {
+  transform: translateX(10px);
+}
+.flow-btn--prev:hover .flow-btn__text {
+  transform: translateX(-10px);
+}
+
+.flow-btn__circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--flow-fill);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.8s cubic-bezier(0.19, 1, 0.22, 1),
+    height 0.8s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.flow-btn:hover .flow-btn__circle {
+  width: 220px;
+  height: 220px;
+  opacity: 1;
+}
+
+.flow-btn__arr {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  stroke: var(--flow-fg);
+  fill: none;
+  z-index: 9;
+  transition:
+    left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+    right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+    stroke 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.flow-btn:hover .flow-btn__arr {
+  stroke: var(--flow-on-fill);
+}
+
+/* Next: arrow enters from left, exits right */
+.flow-btn--next .flow-btn__arr--in {
+  left: -25%;
+}
+.flow-btn--next:hover .flow-btn__arr--in {
+  left: 16px;
+}
+.flow-btn--next .flow-btn__arr--out {
+  right: 16px;
+}
+.flow-btn--next:hover .flow-btn__arr--out {
+  right: -25%;
+}
+
+/* Prev: mirrored */
+.flow-btn--prev .flow-btn__arr--in {
+  right: -25%;
+  left: auto;
+}
+.flow-btn--prev:hover .flow-btn__arr--in {
+  right: 16px;
+}
+.flow-btn--prev .flow-btn__arr--out {
+  left: 16px;
+  right: auto;
+}
+.flow-btn--prev:hover .flow-btn__arr--out {
+  left: -25%;
+}

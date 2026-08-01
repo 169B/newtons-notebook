@@ -12,6 +12,7 @@
     "postinstall": "node scripts/patch-pageflip.js"
   },
   "dependencies": {
+    "lucide-react": "^1.28.0",
     "page-flip": "^2.0.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

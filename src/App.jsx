@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { PageFlip } from 'page-flip'
+import { Maximize2, Minimize2 } from 'lucide-react'
+import { FlowButton } from './components/FlowButton'
 import 'page-flip/src/Style/stPageFlip.css'
 import './App.css'
 
-const NAV_H = 56
+const NAV_H = 72
 const PRELOAD_AHEAD = 8
 const PRELOAD_CONCURRENCY = 6
 
@@ -41,6 +43,7 @@ export default function App() {
   const [totalPages, setTotalPages] = useState(0)
   const [currentPage, setCurrentPage] = useState(0)
   const [loadHint, setLoadHint] = useState('Opening document…')
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const calcPageSize = useCallback((imgW, imgH) => {
     const pageAspect = imgW / imgH
@@ -76,6 +79,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
+  }, [])
+
+  useEffect(() => {
     let destroyed = false
     const cancelled = () => destroyed
 
@@ -87,12 +96,15 @@ export default function App() {
       const { total } = await res.json()
       if (destroyed || !hostRef.current) return
 
-      // Build page list + blank at page 4 for spread alignment
+      // Page list:
+      // - blank at page 4 so interior spreads align
+      // - blank before the last page so the final page is a solo hard back cover
       const sources = Array.from({ length: total }, (_, i) => ({
         type: 'image',
         src: `/pages/page-${String(i + 1).padStart(4, '0')}.jpg`,
       }))
       sources.splice(3, 0, { type: 'blank' })
+      sources.splice(sources.length - 1, 0, { type: 'blank' })
       sourcesRef.current = sources
       setTotalPages(sources.length)
 
@@ -108,7 +120,6 @@ export default function App() {
 
       const size = calcPageSize(natural.w, natural.h)
 
-      // Warm the first spread(s) before showing the book — no black pages at start
       setLoadHint('Loading first pages…')
       const initialSrcs = sources
         .slice(0, 6)
@@ -131,16 +142,22 @@ export default function App() {
 
       sources.forEach((entry, index) => {
         const page = document.createElement('div')
-        page.className = entry.type === 'blank' ? 'page page--blank' : 'page'
-        page.dataset.density =
-          index === 0 || index === sources.length - 1 ? 'hard' : 'soft'
+        const isCover = index === 0 || index === sources.length - 1
+        page.className = [
+          'page',
+          entry.type === 'blank' ? 'page--blank' : '',
+          isCover ? 'page--cover' : '',
+        ].filter(Boolean).join(' ')
+        page.dataset.density = isCover ? 'hard' : 'soft'
 
         if (entry.type === 'blank') {
           page.setAttribute('aria-label', 'Blank page')
         } else {
           const img = document.createElement('img')
           img.src = entry.src
-          img.alt = `Page ${index + 1}`
+          img.alt = isCover
+            ? (index === 0 ? 'Front cover' : 'Back cover')
+            : `Page ${index + 1}`
           img.draggable = false
           img.decoding = 'async'
           img.loading = 'eager'
@@ -170,12 +187,10 @@ export default function App() {
       pf.loadFromHTML(root.querySelectorAll('.page'))
       pf.on('flip', (e) => {
         setCurrentPage(e.data)
-        // Prefetch the next spread(s) as soon as the user turns
         ensurePreloaded(e.data + 1, PRELOAD_AHEAD)
       })
       pageFlipRef.current = pf
 
-      // Keep downloading the rest in the background so later flips are instant
       const rest = sources
         .filter((s) => s.type === 'image' && !preloadedRef.current.has(s.src))
         .map((s) => s.src)
@@ -200,11 +215,22 @@ export default function App() {
   }, [calcPageSize, ensurePreloaded])
 
   const goNext = () => {
-    const next = currentPage + 1
-    ensurePreloaded(next, PRELOAD_AHEAD)
+    ensurePreloaded(currentPage + 1, PRELOAD_AHEAD)
     pageFlipRef.current?.flipNext()
   }
   const goPrev = () => pageFlipRef.current?.flipPrev()
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen()
+      } else {
+        await document.exitFullscreen()
+      }
+    } catch (err) {
+      console.error('Fullscreen failed', err)
+    }
+  }
 
   return (
     <div className="app">
@@ -232,14 +258,24 @@ export default function App() {
       )}
 
       <div className="viewer" style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }}>
+        <button
+          type="button"
+          className="fullscreen-btn"
+          onClick={toggleFullscreen}
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        >
+          {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        </button>
+
         <div className="flipbook-wrap">
           <div ref={hostRef} className="flipbook-host" />
         </div>
 
         <div className="nav-bar">
-          <button type="button" className="nav-btn" onClick={goPrev}>‹ Prev</button>
+          <FlowButton text="Prev" direction="prev" onClick={goPrev} />
           <span className="page-label">Page {currentPage + 1} of {totalPages}</span>
-          <button type="button" className="nav-btn" onClick={goNext}>Next ›</button>
+          <FlowButton text="Next" direction="next" onClick={goNext} />
         </div>
       </div>
     </div>
