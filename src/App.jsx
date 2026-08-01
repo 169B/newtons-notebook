@@ -211,6 +211,13 @@ export default function App() {
       {(status === 'loading' || status === 'error') && (
         <div className="loading-screen">
           <div className="loading-inner">
+            <img
+              className="loading-logo"
+              src="/logo.png"
+              alt="Newton's Notebook"
+              width={160}
+              height={160}
+            />
             <div className="loading-title">Newton's Notebook</div>
             <div className="loading-subtitle">Haverford School Student Publication</div>
             {status === 'loading' && (
