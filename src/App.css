@@ -297,6 +297,27 @@ html, body, #root {
   background: #f7f4ef;
 }
 
+/* Demo spine crease: inset shadows on left/right pages (from StPageFlip demo CSS) */
+.page.--left {
+  box-shadow: inset -7px 0 30px -7px rgba(0, 0, 0, 0.4);
+}
+
+.page.--right {
+  box-shadow: inset 7px 0 30px -7px rgba(0, 0, 0, 0.4);
+}
+
+.page.page--cover.--left {
+  box-shadow:
+    inset 0 0 30px 0 rgba(36, 10, 3, 0.5),
+    -2px 0 5px 2px rgba(0, 0, 0, 0.4);
+}
+
+.page.page--cover.--right {
+  box-shadow:
+    inset 0 0 30px 0 rgba(36, 10, 3, 0.5),
+    10px 0 8px 0 rgba(0, 0, 0, 0.4);
+}
+
 .page img {
   display: block;
   width: 100%;
