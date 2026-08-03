@@ -1,0 +1,253 @@
+.admin {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: radial-gradient(ellipse at top, #2a2218 0%, #0f0d0a 45%);
+  color: #f0e6cc;
+  padding: 28px 24px 48px;
+  font-family: 'Georgia', serif;
+  box-sizing: border-box;
+}
+
+.admin-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.admin-kicker {
+  font-family: 'Koulen', sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c8a86b;
+  font-size: 0.95rem;
+}
+
+.admin-title {
+  margin: 4px 0 6px;
+  font-family: 'Koulen', sans-serif;
+  font-size: 2.4rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.admin-sub {
+  margin: 0;
+  color: #8f8678;
+  font-size: 0.95rem;
+}
+
+.admin-live {
+  color: #7dcc8a;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(200, 168, 107, 0.45);
+  background: rgba(15, 13, 10, 0.65);
+  color: #f0e6cc;
+  font-family: 'Koulen', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  padding: 10px 16px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.admin-btn:hover {
+  background: rgba(200, 168, 107, 0.14);
+}
+
+.admin-btn--ghost {
+  background: transparent;
+}
+
+.admin-banner {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(220, 120, 90, 0.45);
+  background: rgba(80, 30, 20, 0.35);
+  color: #f3c7b8;
+  border-radius: 10px;
+}
+
+.admin-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(200, 168, 107, 0.22);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-card__label {
+  color: #8f8678;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: 'Koulen', sans-serif;
+}
+
+.admin-card__value {
+  font-family: 'Koulen', sans-serif;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.admin-card__value--sm {
+  font-size: 1.15rem;
+}
+
+.admin-split {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-panel {
+  border-radius: 14px;
+  border: 1px solid rgba(200, 168, 107, 0.22);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px 18px 18px;
+}
+
+.admin-panel h2 {
+  margin: 0 0 12px;
+  font-family: 'Koulen', sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.admin-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.admin-panel__head h2 {
+  margin: 0;
+}
+
+.admin-hint {
+  color: #8f8678;
+  font-size: 0.85rem;
+}
+
+.admin-empty {
+  color: #8f8678;
+  margin: 0;
+}
+
+.admin-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-bars__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.95rem;
+}
+
+.admin-bars__track {
+  margin-top: 4px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.admin-bars__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c8a86b, #e8c97a);
+}
+
+.admin-table-wrap {
+  overflow: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: top;
+  font-size: 0.92rem;
+}
+
+.admin-table th {
+  color: #8f8678;
+  font-family: 'Koulen', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.admin-loc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-muted {
+  color: #8f8678;
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.admin-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.admin-foot {
+  margin-top: 18px;
+  color: #6e675c;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 960px) {
+  .admin-cards,
+  .admin-split {
+    grid-template-columns: 1fr;
+  }
+}

@@ -9,18 +9,22 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "prerender": "node scripts/prerender.js",
+    "setup:analytics": "node scripts/setup-analytics.mjs",
     "postinstall": "node scripts/patch-pageflip.js"
   },
   "dependencies": {
+    "appwrite": "^26.2.0",
     "lucide-react": "^1.28.0",
     "page-flip": "^2.0.7",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "node-appwrite": "^27.1.0",
     "oxlint": "^1.75.0",
     "vite": "^8.2.0"
   }

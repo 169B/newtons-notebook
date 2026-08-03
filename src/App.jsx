@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { PageFlip } from 'page-flip'
 import { Maximize2, Minimize2, Smartphone } from 'lucide-react'
 import { FlowButton } from './components/FlowButton'
+import { trackVisit } from './lib/analytics'
 import 'page-flip/src/Style/stPageFlip.css'
 import './App.css'
 
@@ -170,6 +171,10 @@ export default function App() {
       window.removeEventListener('orientationchange', onResize)
     }
   }, [applyBookSize, calcPageSize, syncLayoutFlags])
+
+  useEffect(() => {
+    trackVisit()
+  }, [])
 
   useEffect(() => {
     if (status !== 'ready') return
