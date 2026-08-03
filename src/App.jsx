@@ -27,9 +27,17 @@ function isPhoneLandscape() {
 
 function chromeHeight() {
   if (document.fullscreenElement) return 0
-  if (isPhoneLandscape()) return 0
-  if (isPhoneViewport() && !isLandscape()) return 0
+  if (isPhoneViewport()) return 0
   return NAV_H
+}
+
+/** Prefer visualViewport — excludes mobile browser chrome more accurately. */
+function viewportSize() {
+  const vv = window.visualViewport
+  return {
+    w: Math.floor(vv?.width || window.innerWidth),
+    h: Math.floor(vv?.height || window.innerHeight),
+  }
 }
 
 function preloadImage(src) {
@@ -84,14 +92,29 @@ export default function App() {
     () => isPhoneViewport() && !isLandscape()
   )
   const [hideChrome, setHideChrome] = useState(
-    () => Boolean(document.fullscreenElement) || isPhoneLandscape()
+    () => Boolean(document.fullscreenElement) || isPhoneViewport()
   )
 
   const calcPageSize = useCallback((imgW, imgH) => {
     const pageAspect = imgW / imgH
-    const immersive = Boolean(document.fullscreenElement) || isPhoneLandscape()
-    const maxH = window.innerHeight - chromeHeight() - (immersive ? 2 : 16)
-    const maxW = window.innerWidth * (immersive ? 0.998 : 0.98)
+    const phone = isPhoneViewport()
+    const immersive = Boolean(document.fullscreenElement) || phone
+    const { w: vw, h: vh } = viewportSize()
+    const maxH = vh - chromeHeight() - (immersive ? 0 : 16)
+    const maxW = vw * (immersive ? 1 : 0.98)
+
+    // Phone: cover the screen (crop edges) so pages read as large as possible.
+    if (phone) {
+      const fromHeightH = maxH
+      const fromWidthH = maxW / 2 / pageAspect
+      const h = Math.max(fromHeightH, fromWidthH)
+      const pageW = h * pageAspect
+      return {
+        width: Math.max(120, Math.floor(pageW)),
+        height: Math.max(160, Math.floor(h)),
+      }
+    }
+
     let h = maxH
     let pageW = h * pageAspect
     if (pageW * 2 > maxW) {
@@ -145,30 +168,32 @@ export default function App() {
 
   const syncLayoutFlags = useCallback(() => {
     setMobilePortrait(isPhoneViewport() && !isLandscape())
-    setHideChrome(Boolean(document.fullscreenElement) || isPhoneLandscape())
+    setHideChrome(Boolean(document.fullscreenElement) || isPhoneViewport())
     setIsFullscreen(Boolean(document.fullscreenElement))
   }, [])
 
   useEffect(() => {
-    const onFs = () => {
-      syncLayoutFlags()
-      if (document.fullscreenElement) lockLandscape()
-      const { w, h } = naturalRef.current
-      requestAnimationFrame(() => applyBookSize(calcPageSize(w, h)))
-    }
-    const onResize = () => {
+    const refit = () => {
       syncLayoutFlags()
       const { w, h } = naturalRef.current
       applyBookSize(calcPageSize(w, h))
     }
+    const onFs = () => {
+      if (document.fullscreenElement) lockLandscape()
+      requestAnimationFrame(refit)
+    }
     document.addEventListener('fullscreenchange', onFs)
-    window.addEventListener('resize', onResize)
-    window.addEventListener('orientationchange', onResize)
+    window.addEventListener('resize', refit)
+    window.addEventListener('orientationchange', refit)
+    window.visualViewport?.addEventListener('resize', refit)
+    window.visualViewport?.addEventListener('scroll', refit)
     syncLayoutFlags()
     return () => {
       document.removeEventListener('fullscreenchange', onFs)
-      window.removeEventListener('resize', onResize)
-      window.removeEventListener('orientationchange', onResize)
+      window.removeEventListener('resize', refit)
+      window.removeEventListener('orientationchange', refit)
+      window.visualViewport?.removeEventListener('resize', refit)
+      window.visualViewport?.removeEventListener('scroll', refit)
     }
   }, [applyBookSize, calcPageSize, syncLayoutFlags])
 
@@ -365,11 +390,15 @@ export default function App() {
 
   const toggleFullscreen = async () => {
     try {
+      const el = document.documentElement
       if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen()
+        if (el.requestFullscreen) await el.requestFullscreen()
+        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen()
         await lockLandscape()
-      } else {
+      } else if (document.exitFullscreen) {
         await document.exitFullscreen()
+      } else if (document.webkitExitFullscreen) {
+        await document.webkitExitFullscreen()
       }
     } catch (err) {
       console.error('Fullscreen failed', err)
@@ -378,17 +407,19 @@ export default function App() {
   }
 
   const enterMobileLandscape = async () => {
-    await lockLandscape()
     try {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen()
+      const el = document.documentElement
+      if (!document.fullscreenElement) {
+        if (el.requestFullscreen) await el.requestFullscreen()
+        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen()
       }
     } catch {
-      // fullscreen optional
+      // iOS Safari often blocks programmatic fullscreen — sizing still fills the screen
     }
+    await lockLandscape()
     syncLayoutFlags()
     const { w, h } = naturalRef.current
-    applyBookSize(calcPageSize(w, h))
+    requestAnimationFrame(() => applyBookSize(calcPageSize(w, h)))
   }
 
   return (
@@ -421,10 +452,10 @@ export default function App() {
           <Smartphone className="rotate-gate__icon" size={48} />
           <div className="rotate-gate__title">Turn your phone</div>
           <div className="rotate-gate__text">
-            Newton&apos;s Notebook is best in landscape — rotate to fill the screen.
+            Rotate to landscape, then tap below — the book fills your whole screen.
           </div>
           <button type="button" className="rotate-gate__btn" onClick={enterMobileLandscape}>
-            Continue in landscape
+            Fill screen
           </button>
         </div>
       )}
@@ -433,6 +464,7 @@ export default function App() {
         className={[
           'viewer',
           hideChrome ? 'viewer--fullscreen' : '',
+          isPhoneViewport() ? 'viewer--phone' : '',
           isPhoneLandscape() ? 'viewer--mobile-landscape' : '',
         ].filter(Boolean).join(' ')}
         style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }}
