@@ -147,17 +147,71 @@ html, body, #root {
   color: #fff6df;
 }
 
+.mode-btn {
+  position: absolute;
+  left: 14px;
+  bottom: 18px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 100px;
+  border: 1.5px solid rgba(200, 168, 107, 0.45);
+  background: rgba(15, 13, 10, 0.78);
+  color: #f0e6cc;
+  font-family: 'Koulen', sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 16px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.mode-btn:hover,
+.mode-btn--active {
+  background: rgba(200, 168, 107, 0.16);
+  border-color: rgba(200, 168, 107, 0.75);
+  color: #fff6df;
+}
+
 .viewer--fullscreen .cover-btn,
-.viewer--mobile-landscape .cover-btn {
+.viewer--mobile-landscape .cover-btn,
+.viewer--phone .cover-btn,
+.viewer--fullscreen .mode-btn,
+.viewer--mobile-landscape .mode-btn,
+.viewer--phone .mode-btn {
   bottom: 12px;
-  right: 12px;
   opacity: 0.55;
   padding: 8px 14px;
   font-size: 0.85rem;
 }
 
+.viewer--fullscreen .cover-btn,
+.viewer--mobile-landscape .cover-btn,
+.viewer--phone .cover-btn {
+  right: 12px;
+}
+
+.viewer--fullscreen .mode-btn,
+.viewer--mobile-landscape .mode-btn,
+.viewer--phone .mode-btn {
+  left: 12px;
+}
+
+.viewer--phone .mode-btn {
+  left: max(10px, env(safe-area-inset-left, 0px));
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+}
+
 .viewer--fullscreen .cover-btn:hover,
-.viewer--mobile-landscape .cover-btn:hover {
+.viewer--mobile-landscape .cover-btn:hover,
+.viewer--phone .cover-btn:hover,
+.viewer--fullscreen .mode-btn:hover,
+.viewer--mobile-landscape .mode-btn:hover,
+.viewer--phone .mode-btn:hover,
+.mode-btn--active {
   opacity: 1;
 }
 

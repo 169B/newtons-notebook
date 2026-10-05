@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { PageFlip } from 'page-flip'
-import { Maximize2, Minimize2, Smartphone } from 'lucide-react'
+import { Book, BookOpen, Maximize2, Minimize2, Smartphone } from 'lucide-react'
 import { FlowButton } from './components/FlowButton'
 import { trackVisit } from './lib/analytics'
 import 'page-flip/src/Style/stPageFlip.css'
@@ -94,20 +94,25 @@ export default function App() {
   const [hideChrome, setHideChrome] = useState(
     () => Boolean(document.fullscreenElement) || isPhoneViewport()
   )
+  const [singlePage, setSinglePage] = useState(false)
+  const singlePageRef = useRef(false)
 
   const calcPageSize = useCallback((imgW, imgH) => {
     const pageAspect = imgW / imgH
     const phone = isPhoneViewport()
+    const single = singlePageRef.current
     const immersive = Boolean(document.fullscreenElement) || phone
     const { w: vw, h: vh } = viewportSize()
     const maxH = vh - chromeHeight() - (immersive ? 0 : 16)
     const maxW = vw * (immersive ? 1 : 0.98)
+    const pagesWide = single ? 1 : 2
 
-    // Phone: cover the screen (crop edges) so pages read as large as possible.
-    if (phone) {
+    // Cover-fill on phone; contain on desktop
+    if (phone || single) {
       const fromHeightH = maxH
-      const fromWidthH = maxW / 2 / pageAspect
-      const h = Math.max(fromHeightH, fromWidthH)
+      const fromWidthH = maxW / pagesWide / pageAspect
+      // Phone cover: fill screen. Single-page desktop: prefer contain (min) unless phone.
+      const h = phone ? Math.max(fromHeightH, fromWidthH) : Math.min(fromHeightH, fromWidthH)
       const pageW = h * pageAspect
       return {
         width: Math.max(120, Math.floor(pageW)),
@@ -117,8 +122,8 @@ export default function App() {
 
     let h = maxH
     let pageW = h * pageAspect
-    if (pageW * 2 > maxW) {
-      pageW = maxW / 2
+    if (pageW * pagesWide > maxW) {
+      pageW = maxW / pagesWide
       h = pageW / pageAspect
     }
     return {
@@ -131,10 +136,12 @@ export default function App() {
     const root = bookRootRef.current
     const pf = pageFlipRef.current
     if (!root || !pf) return
-    root.style.width = `${size.width * 2}px`
+    const pagesWide = singlePageRef.current ? 1 : 2
+    root.style.width = `${size.width * pagesWide}px`
     root.style.height = `${size.height}px`
-    root.style.minWidth = `${size.width * 2}px`
+    root.style.minWidth = `${size.width * pagesWide}px`
     root.style.minHeight = `${size.height}px`
+    root.style.maxWidth = `${size.width * pagesWide}px`
     const settings = pf.getSettings()
     settings.width = size.width
     settings.height = size.height
@@ -142,6 +149,7 @@ export default function App() {
     settings.maxWidth = size.width
     settings.minHeight = size.height
     settings.maxHeight = size.height
+    settings.usePortrait = true
     try {
       pf.update()
     } catch {
@@ -272,11 +280,13 @@ export default function App() {
 
       hostRef.current.innerHTML = ''
       const root = document.createElement('div')
+      const pagesWide = singlePageRef.current ? 1 : 2
       root.className = 'flipbook'
-      root.style.width = `${size.width * 2}px`
+      root.style.width = `${size.width * pagesWide}px`
       root.style.height = `${size.height}px`
-      root.style.minWidth = `${size.width * 2}px`
+      root.style.minWidth = `${size.width * pagesWide}px`
       root.style.minHeight = `${size.height}px`
+      root.style.maxWidth = `${size.width * pagesWide}px`
       hostRef.current.appendChild(root)
       bookRootRef.current = root
 
@@ -314,8 +324,8 @@ export default function App() {
         height: size.height,
         size: 'fixed',
         showCover: true,
-        usePortrait: false,
-        autoSize: true,
+        usePortrait: true,
+        autoSize: false,
         drawShadow: true,
         flippingTime: 1000,
         useMouseEvents: true,
@@ -386,6 +396,25 @@ export default function App() {
     ensurePreloaded(0, PRELOAD_AHEAD)
     pf.turnToPage(0)
     setCurrentPage(0)
+  }
+
+  const togglePageMode = () => {
+    const next = !singlePageRef.current
+    singlePageRef.current = next
+    setSinglePage(next)
+    const pf = pageFlipRef.current
+    const page = pf?.getCurrentPageIndex?.() ?? currentPage
+    const { w, h } = naturalRef.current
+    const size = calcPageSize(w, h)
+    applyBookSize(size)
+    if (pf) {
+      try {
+        pf.turnToPage(page)
+        setCurrentPage(page)
+      } catch {
+        // ignore
+      }
+    }
   }
 
   const toggleFullscreen = async () => {
@@ -466,6 +495,7 @@ export default function App() {
           hideChrome ? 'viewer--fullscreen' : '',
           isPhoneViewport() ? 'viewer--phone' : '',
           isPhoneLandscape() ? 'viewer--mobile-landscape' : '',
+          singlePage ? 'viewer--single' : '',
         ].filter(Boolean).join(' ')}
         style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }}
       >
@@ -515,6 +545,18 @@ export default function App() {
             <FlowButton text="Next" direction="next" onClick={goNext} />
           </div>
         )}
+
+        <button
+          type="button"
+          className={`mode-btn${singlePage ? ' mode-btn--active' : ''}`}
+          onClick={togglePageMode}
+          aria-pressed={singlePage}
+          aria-label={singlePage ? 'Switch to two-page spread' : 'Switch to one page at a time'}
+          title={singlePage ? 'Two-page spread' : 'One page at a time'}
+        >
+          {singlePage ? <BookOpen size={16} /> : <Book size={16} />}
+          {singlePage ? '2 Pages' : '1 Page'}
+        </button>
 
         {currentPage > 0 && (
           <button
