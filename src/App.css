@@ -11,6 +11,28 @@ html, body, #root {
   background: #0f0d0a;
 }
 
+/* CSS fullscreen fallback (iOS Safari has no real Fullscreen API for pages) */
+html.nn-immersive,
+html.nn-immersive body {
+  width: 100% !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  inset: 0 !important;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+html.nn-immersive #root,
+html.nn-immersive .app {
+  width: 100% !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  position: fixed !important;
+  inset: 0 !important;
+}
+
 .app {
   width: 100vw;
   height: 100vh;
@@ -240,7 +262,7 @@ html, body, #root {
   max-height: none;
 }
 
-/* Phone: pin the book edge-to-edge and let cover-sizing crop overflow */
+/* Phone: pin the book edge-to-edge; contain sizing (no crop) */
 .viewer--phone {
   background: #0f0d0a;
 }
@@ -251,10 +273,21 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.viewer--phone .book-stage {
+  max-width: none;
+  max-height: none;
 }
 
 .viewer--phone .stf__parent {
   box-shadow: none;
+}
+
+.viewer--phone.viewer--immersive .fullscreen-btn,
+.viewer--phone.viewer--immersive .cover-btn {
+  opacity: 0.4;
 }
 
 .viewer--phone .cover-btn {
@@ -268,9 +301,9 @@ html, body, #root {
 .viewer--phone .fullscreen-btn {
   top: max(8px, env(safe-area-inset-top, 0px));
   right: max(8px, env(safe-area-inset-right, 0px));
-  opacity: 0.35;
-  width: 36px;
-  height: 36px;
+  opacity: 0.55;
+  width: 42px;
+  height: 42px;
 }
 
 /* ── Phone portrait: ask to rotate ── */

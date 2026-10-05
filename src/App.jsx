@@ -73,8 +73,9 @@ async function tryFullscreen() {
   try {
     const el = document.documentElement
     if (document.fullscreenElement) return true
+    // Prefer standard API; some Android browsers need the element from a gesture
     if (el.requestFullscreen) {
-      await el.requestFullscreen()
+      await el.requestFullscreen({ navigationUI: 'hide' })
       return true
     }
     if (el.webkitRequestFullscreen) {
@@ -82,9 +83,14 @@ async function tryFullscreen() {
       return true
     }
   } catch {
-    // iOS Safari often blocks programmatic fullscreen
+    // iOS Safari blocks Fullscreen API for non-video — use CSS immersive instead
   }
   return false
+}
+
+function setImmersiveClass(on) {
+  document.documentElement.classList.toggle('nn-immersive', on)
+  document.body.classList.toggle('nn-immersive', on)
 }
 
 export default function App() {
@@ -110,29 +116,21 @@ export default function App() {
   )
   const [singlePage, setSinglePage] = useState(() => isPhoneViewport())
   const singlePageRef = useRef(isPhoneViewport())
+  const immersiveRef = useRef(false)
+  const [immersive, setImmersive] = useState(false)
 
   const calcPageSize = useCallback((imgW, imgH) => {
     const pageAspect = imgW / imgH
     const phone = isPhoneViewport()
     const single = singlePageRef.current || phone
-    const immersive = Boolean(document.fullscreenElement) || phone
     const { w: vw, h: vh } = viewportSize()
-    const maxH = vh - chromeHeight() - (immersive ? 0 : 16)
-    const maxW = vw * (immersive ? 1 : 0.98)
+    // Small inset so page edges aren't clipped by the flip container / safe areas
+    const pad = phone ? 4 : (immersiveRef.current || document.fullscreenElement ? 0 : 16)
+    const maxH = Math.max(160, vh - chromeHeight() - pad * 2)
+    const maxW = Math.max(120, vw - pad * 2)
     const pagesWide = single ? 1 : 2
 
-    // Phone / single: fill the screen with one page (cover — slight crop OK)
-    if (phone || single) {
-      const fromHeightH = maxH
-      const fromWidthH = maxW / pagesWide / pageAspect
-      const h = phone ? Math.max(fromHeightH, fromWidthH) : Math.min(fromHeightH, fromWidthH)
-      const pageW = h * pageAspect
-      return {
-        width: Math.max(120, Math.floor(pageW)),
-        height: Math.max(160, Math.floor(h)),
-      }
-    }
-
+    // Always contain (never crop page sides/top) — letterbox if needed
     let h = maxH
     let pageW = h * pageAspect
     if (pageW * pagesWide > maxW) {
@@ -191,13 +189,50 @@ export default function App() {
   const syncLayoutFlags = useCallback(() => {
     const phone = isPhoneViewport()
     setPhoneLandscape(phone && isLandscape())
-    setHideChrome(Boolean(document.fullscreenElement) || phone)
-    setIsFullscreen(Boolean(document.fullscreenElement))
+    setHideChrome(
+      Boolean(document.fullscreenElement) || immersiveRef.current || phone
+    )
+    setIsFullscreen(Boolean(document.fullscreenElement) || immersiveRef.current)
+    setImmersive(immersiveRef.current)
     if (phone && !singlePageRef.current) {
       singlePageRef.current = true
       setSinglePage(true)
     }
   }, [])
+
+  const enterImmersive = useCallback(async () => {
+    await tryFullscreen()
+    immersiveRef.current = true
+    setImmersiveClass(true)
+    setImmersive(true)
+    setIsFullscreen(true)
+    setHideChrome(true)
+    if (isPhoneViewport()) await lockPortrait()
+    // Nudge iOS Safari to collapse the URL bar
+    window.scrollTo(0, 1)
+    const { w, h } = naturalRef.current
+    requestAnimationFrame(() => {
+      applyBookSize(calcPageSize(w, h))
+      window.scrollTo(0, 1)
+    })
+  }, [applyBookSize, calcPageSize])
+
+  const exitImmersive = useCallback(async () => {
+    immersiveRef.current = false
+    setImmersiveClass(false)
+    setImmersive(false)
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) await document.exitFullscreen()
+        else if (document.webkitExitFullscreen) await document.webkitExitFullscreen()
+      }
+    } catch {
+      // ignore
+    }
+    syncLayoutFlags()
+    const { w, h } = naturalRef.current
+    requestAnimationFrame(() => applyBookSize(calcPageSize(w, h)))
+  }, [applyBookSize, calcPageSize, syncLayoutFlags])
 
   useEffect(() => {
     const refit = () => {
@@ -206,7 +241,13 @@ export default function App() {
       applyBookSize(calcPageSize(w, h))
     }
     const onFs = () => {
-      if (document.fullscreenElement && isPhoneViewport()) lockPortrait()
+      if (document.fullscreenElement) {
+        immersiveRef.current = true
+        setImmersiveClass(true)
+        if (isPhoneViewport()) lockPortrait()
+      } else if (!immersiveRef.current) {
+        setImmersiveClass(false)
+      }
       requestAnimationFrame(refit)
     }
     document.addEventListener('fullscreenchange', onFs)
@@ -224,7 +265,7 @@ export default function App() {
     }
   }, [applyBookSize, calcPageSize, syncLayoutFlags])
 
-  // Phone: force single-page + try portrait fullscreen once the book is ready
+  // Phone: force single-page + enter immersive once ready
   useEffect(() => {
     if (status !== 'ready' || !isPhoneViewport()) return undefined
     singlePageRef.current = true
@@ -409,8 +450,8 @@ export default function App() {
   const goPrev = () => pageFlipRef.current?.flipPrev()
 
   const phoneTurn = (dir) => {
-    if (isPhoneViewport() && !document.fullscreenElement) {
-      tryFullscreen().then(() => lockPortrait())
+    if (isPhoneViewport() && !immersiveRef.current && !document.fullscreenElement) {
+      enterImmersive()
     }
     if (dir === 'next') goNext()
     else goPrev()
@@ -457,29 +498,18 @@ export default function App() {
   }
 
   const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await tryFullscreen()
-        if (isPhoneViewport()) await lockPortrait()
-      } else if (document.exitFullscreen) {
-        await document.exitFullscreen()
-      } else if (document.webkitExitFullscreen) {
-        await document.webkitExitFullscreen()
-      }
-    } catch (err) {
-      console.error('Fullscreen failed', err)
-      if (isPhoneViewport()) await lockPortrait()
+    if (document.fullscreenElement || immersiveRef.current) {
+      await exitImmersive()
+    } else {
+      await enterImmersive()
     }
   }
 
   const enterPhonePortrait = async () => {
-    await tryFullscreen()
-    await lockPortrait()
     singlePageRef.current = true
     setSinglePage(true)
+    await enterImmersive()
     syncLayoutFlags()
-    const { w, h } = naturalRef.current
-    requestAnimationFrame(() => applyBookSize(calcPageSize(w, h)))
   }
 
   return (
@@ -526,6 +556,7 @@ export default function App() {
           hideChrome ? 'viewer--fullscreen' : '',
           isPhoneViewport() ? 'viewer--phone' : '',
           singlePage || isPhoneViewport() ? 'viewer--single' : '',
+          immersive ? 'viewer--immersive' : '',
         ].filter(Boolean).join(' ')}
         style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }}
       >
