@@ -21,10 +21,6 @@ function isLandscape() {
   return window.innerWidth >= window.innerHeight
 }
 
-function isPhoneLandscape() {
-  return isPhoneViewport() && isLandscape()
-}
-
 function chromeHeight() {
   if (document.fullscreenElement) return 0
   if (isPhoneViewport()) return 0
@@ -63,14 +59,32 @@ async function preloadMany(srcs, concurrency = PRELOAD_CONCURRENCY, cancelled) {
   await Promise.all(Array.from({ length: concurrency }, () => worker()))
 }
 
-async function lockLandscape() {
+async function lockPortrait() {
   try {
     if (screen.orientation?.lock) {
-      await screen.orientation.lock('landscape')
+      await screen.orientation.lock('portrait')
     }
   } catch {
     // Browsers often require fullscreen / may deny — ignore
   }
+}
+
+async function tryFullscreen() {
+  try {
+    const el = document.documentElement
+    if (document.fullscreenElement) return true
+    if (el.requestFullscreen) {
+      await el.requestFullscreen()
+      return true
+    }
+    if (el.webkitRequestFullscreen) {
+      await el.webkitRequestFullscreen()
+      return true
+    }
+  } catch {
+    // iOS Safari often blocks programmatic fullscreen
+  }
+  return false
 }
 
 export default function App() {
@@ -88,30 +102,29 @@ export default function App() {
   const [loadHint, setLoadHint] = useState('Opening document…')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [gotoValue, setGotoValue] = useState('')
-  const [mobilePortrait, setMobilePortrait] = useState(
-    () => isPhoneViewport() && !isLandscape()
+  const [phoneLandscape, setPhoneLandscape] = useState(
+    () => isPhoneViewport() && isLandscape()
   )
   const [hideChrome, setHideChrome] = useState(
     () => Boolean(document.fullscreenElement) || isPhoneViewport()
   )
-  const [singlePage, setSinglePage] = useState(false)
-  const singlePageRef = useRef(false)
+  const [singlePage, setSinglePage] = useState(() => isPhoneViewport())
+  const singlePageRef = useRef(isPhoneViewport())
 
   const calcPageSize = useCallback((imgW, imgH) => {
     const pageAspect = imgW / imgH
     const phone = isPhoneViewport()
-    const single = singlePageRef.current
+    const single = singlePageRef.current || phone
     const immersive = Boolean(document.fullscreenElement) || phone
     const { w: vw, h: vh } = viewportSize()
     const maxH = vh - chromeHeight() - (immersive ? 0 : 16)
     const maxW = vw * (immersive ? 1 : 0.98)
     const pagesWide = single ? 1 : 2
 
-    // Cover-fill on phone; contain on desktop
+    // Phone / single: fill the screen with one page (cover — slight crop OK)
     if (phone || single) {
       const fromHeightH = maxH
       const fromWidthH = maxW / pagesWide / pageAspect
-      // Phone cover: fill screen. Single-page desktop: prefer contain (min) unless phone.
       const h = phone ? Math.max(fromHeightH, fromWidthH) : Math.min(fromHeightH, fromWidthH)
       const pageW = h * pageAspect
       return {
@@ -136,7 +149,8 @@ export default function App() {
     const root = bookRootRef.current
     const pf = pageFlipRef.current
     if (!root || !pf) return
-    const pagesWide = singlePageRef.current ? 1 : 2
+    const phone = isPhoneViewport()
+    const pagesWide = (singlePageRef.current || phone) ? 1 : 2
     root.style.width = `${size.width * pagesWide}px`
     root.style.height = `${size.height}px`
     root.style.minWidth = `${size.width * pagesWide}px`
@@ -175,9 +189,14 @@ export default function App() {
   }, [])
 
   const syncLayoutFlags = useCallback(() => {
-    setMobilePortrait(isPhoneViewport() && !isLandscape())
-    setHideChrome(Boolean(document.fullscreenElement) || isPhoneViewport())
+    const phone = isPhoneViewport()
+    setPhoneLandscape(phone && isLandscape())
+    setHideChrome(Boolean(document.fullscreenElement) || phone)
     setIsFullscreen(Boolean(document.fullscreenElement))
+    if (phone && !singlePageRef.current) {
+      singlePageRef.current = true
+      setSinglePage(true)
+    }
   }, [])
 
   useEffect(() => {
@@ -187,7 +206,7 @@ export default function App() {
       applyBookSize(calcPageSize(w, h))
     }
     const onFs = () => {
-      if (document.fullscreenElement) lockLandscape()
+      if (document.fullscreenElement && isPhoneViewport()) lockPortrait()
       requestAnimationFrame(refit)
     }
     document.addEventListener('fullscreenchange', onFs)
@@ -204,6 +223,17 @@ export default function App() {
       window.visualViewport?.removeEventListener('scroll', refit)
     }
   }, [applyBookSize, calcPageSize, syncLayoutFlags])
+
+  // Phone: force single-page + try portrait fullscreen once the book is ready
+  useEffect(() => {
+    if (status !== 'ready' || !isPhoneViewport()) return undefined
+    singlePageRef.current = true
+    setSinglePage(true)
+    lockPortrait()
+    const { w, h } = naturalRef.current
+    applyBookSize(calcPageSize(w, h))
+    return undefined
+  }, [status, applyBookSize, calcPageSize])
 
   useEffect(() => {
     trackVisit()
@@ -378,6 +408,14 @@ export default function App() {
   }
   const goPrev = () => pageFlipRef.current?.flipPrev()
 
+  const phoneTurn = (dir) => {
+    if (isPhoneViewport() && !document.fullscreenElement) {
+      tryFullscreen().then(() => lockPortrait())
+    }
+    if (dir === 'next') goNext()
+    else goPrev()
+  }
+
   const goToPage = (raw) => {
     const pf = pageFlipRef.current
     if (!pf || !totalPages) return
@@ -399,6 +437,7 @@ export default function App() {
   }
 
   const togglePageMode = () => {
+    if (isPhoneViewport()) return // phones stay single-page
     const next = !singlePageRef.current
     singlePageRef.current = next
     setSinglePage(next)
@@ -419,11 +458,9 @@ export default function App() {
 
   const toggleFullscreen = async () => {
     try {
-      const el = document.documentElement
       if (!document.fullscreenElement) {
-        if (el.requestFullscreen) await el.requestFullscreen()
-        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen()
-        await lockLandscape()
+        await tryFullscreen()
+        if (isPhoneViewport()) await lockPortrait()
       } else if (document.exitFullscreen) {
         await document.exitFullscreen()
       } else if (document.webkitExitFullscreen) {
@@ -431,21 +468,15 @@ export default function App() {
       }
     } catch (err) {
       console.error('Fullscreen failed', err)
-      await lockLandscape()
+      if (isPhoneViewport()) await lockPortrait()
     }
   }
 
-  const enterMobileLandscape = async () => {
-    try {
-      const el = document.documentElement
-      if (!document.fullscreenElement) {
-        if (el.requestFullscreen) await el.requestFullscreen()
-        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen()
-      }
-    } catch {
-      // iOS Safari often blocks programmatic fullscreen — sizing still fills the screen
-    }
-    await lockLandscape()
+  const enterPhonePortrait = async () => {
+    await tryFullscreen()
+    await lockPortrait()
+    singlePageRef.current = true
+    setSinglePage(true)
     syncLayoutFlags()
     const { w, h } = naturalRef.current
     requestAnimationFrame(() => applyBookSize(calcPageSize(w, h)))
@@ -476,15 +507,15 @@ export default function App() {
         </div>
       )}
 
-      {mobilePortrait && status === 'ready' && (
+      {phoneLandscape && status === 'ready' && (
         <div className="rotate-gate">
           <Smartphone className="rotate-gate__icon" size={48} />
-          <div className="rotate-gate__title">Turn your phone</div>
+          <div className="rotate-gate__title">Hold upright</div>
           <div className="rotate-gate__text">
-            Rotate to landscape, then tap below — the book fills your whole screen.
+            Newton&apos;s Notebook reads one page at a time in portrait. Rotate, then tap below.
           </div>
-          <button type="button" className="rotate-gate__btn" onClick={enterMobileLandscape}>
-            Fill screen
+          <button type="button" className="rotate-gate__btn" onClick={enterPhonePortrait}>
+            Open fullscreen
           </button>
         </div>
       )}
@@ -494,8 +525,7 @@ export default function App() {
           'viewer',
           hideChrome ? 'viewer--fullscreen' : '',
           isPhoneViewport() ? 'viewer--phone' : '',
-          isPhoneLandscape() ? 'viewer--mobile-landscape' : '',
-          singlePage ? 'viewer--single' : '',
+          singlePage || isPhoneViewport() ? 'viewer--single' : '',
         ].filter(Boolean).join(' ')}
         style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }}
       >
@@ -514,6 +544,23 @@ export default function App() {
             <div ref={hostRef} className="flipbook-host" />
           </div>
         </div>
+
+        {isPhoneViewport() && status === 'ready' && !phoneLandscape && (
+          <>
+            <button
+              type="button"
+              className="phone-turn phone-turn--prev"
+              onClick={() => phoneTurn('prev')}
+              aria-label="Previous page"
+            />
+            <button
+              type="button"
+              className="phone-turn phone-turn--next"
+              onClick={() => phoneTurn('next')}
+              aria-label="Next page"
+            />
+          </>
+        )}
 
         {!hideChrome && (
           <div className="nav-bar">
@@ -546,17 +593,19 @@ export default function App() {
           </div>
         )}
 
-        <button
-          type="button"
-          className={`mode-btn${singlePage ? ' mode-btn--active' : ''}`}
-          onClick={togglePageMode}
-          aria-pressed={singlePage}
-          aria-label={singlePage ? 'Switch to two-page spread' : 'Switch to one page at a time'}
-          title={singlePage ? 'Two-page spread' : 'One page at a time'}
-        >
-          {singlePage ? <BookOpen size={16} /> : <Book size={16} />}
-          {singlePage ? '2 Pages' : '1 Page'}
-        </button>
+        {!isPhoneViewport() && (
+          <button
+            type="button"
+            className={`mode-btn${singlePage ? ' mode-btn--active' : ''}`}
+            onClick={togglePageMode}
+            aria-pressed={singlePage}
+            aria-label={singlePage ? 'Switch to two-page spread' : 'Switch to one page at a time'}
+            title={singlePage ? 'Two-page spread' : 'One page at a time'}
+          >
+            {singlePage ? <BookOpen size={16} /> : <Book size={16} />}
+            {singlePage ? '2 Pages' : '1 Page'}
+          </button>
+        )}
 
         {currentPage > 0 && (
           <button

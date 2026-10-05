@@ -525,3 +525,26 @@ html, body, #root {
   background: rgba(200, 168, 107, 0.12);
   border-color: rgba(200, 168, 107, 0.65);
 }
+
+/* Phone single-page turn hit targets (kept from portrait mode) */
+.phone-turn {
+  position: absolute;
+  top: 12%;
+  bottom: 18%;
+  width: 28%;
+  z-index: 30;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.phone-turn--prev { left: 0; }
+.phone-turn--next { right: 0; }
+
+.viewer--phone.viewer--single .flipbook-wrap {
+  position: absolute;
+  inset: 0;
+}
